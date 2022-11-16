@@ -1,0 +1,211 @@
+version: '3'
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - 2181:2181
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zookeeper
+    container_name: kafka
+    ports:
+      - 9093:9093
+      - 29093:29093
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29093,PLAINTEXT_HOST://localhost:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1  
+  
+  kafka-ui:
+    image: provectuslabs/kafka-ui
+    depends_on:
+      - zookeeper  
+      - kafka
+    container_name: kafka-ui
+    ports:
+      - "8080:8080"
+    restart: always
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29093
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181  
+  
+  db: 
+    image: "postgres:14.1-alpine" 
+    restart: always
+    environment:
+      - POSTGRES_USER=adminpostgres
+      - POSTGRES_PASSWORD=87654321
+      - POSTGRES_DB=emas
+    ports:
+      - '5432:5432'
+    volumes: 
+      - ./db/data:/var/lib/postgresql/data
+
+  input-harga-service:
+    container_name: input-harga-service
+    build:
+      dockerfile: Dockerfile
+      context: ../micro-services/input-harga-service/
+    restart: always
+    ports:
+      - 8081:8081      
+    environment:
+      PORT: 8081
+      KAFKA_URL: kafka:29093
+      KAFKA_TOPIC: input-harga
+    depends_on:
+      - zookeeper  
+      - kafka
+      - db 
+  
+  input-harga-storage-service:
+    container_name: input-harga-storage-service
+    build:
+      dockerfile: Dockerfile
+      context: ../micro-services/input-harga-storage-service/
+    restart: always
+    ports:
+      - 8082:8082      
+    environment:
+      PORT: 8082
+      KAFKA_URL: kafka:29093
+      KAFKA_TOPIC: input-harga
+      DSN: postgres://adminpostgres:87654321@db:5432/postgres?sslmode=disable
+    depends_on:
+      - zookeeper  
+      - kafka   
+      - db
+
+  check-harga-service:
+    container_name: check-harga-service
+    build:
+      dockerfile: Dockerfile
+      context: ../micro-services/check-harga-service/
+    restart: always
+    ports:
+      - 8085:8085      
+    environment:
+      PORT: 8085
+      KAFKA_URL: kafka:29093
+      DSN: postgres://adminpostgres:87654321@db:5432/postgres?sslmode=disable
+    depends_on:
+      - zookeeper  
+      - kafka   
+      - db
+  
+  topup-service:
+    container_name: topup-service
+    build:
+      dockerfile: Dockerfile
+      context: ../micro-services/topup-service/
+    restart: always
+    ports:
+      - 8083:8083      
+    environment:
+      PORT: 8083
+      KAFKA_URL: kafka:29093
+      KAFKA_TOPIC: topup
+      DSN: postgres://adminpostgres:87654321@db:5432/postgres?sslmode=disable
+    depends_on:
+      - zookeeper  
+      - kafka   
+      - db
+
+  topup-storage-service:
+    container_name: topup-storage-service
+    build:
+      dockerfile: Dockerfile
+      context: ../micro-services/topup-storage-service/
+    restart: always
+    ports:
+      - 8084:8084      
+    environment:
+      PORT: 8084
+      KAFKA_URL: kafka:29093
+      KAFKA_TOPIC: topup
+      DSN: postgres://adminpostgres:87654321@db:5432/postgres?sslmode=disable
+    depends_on:
+      - zookeeper  
+      - kafka   
+      - db
+
+  check-saldo-service:
+    container_name: check-saldo-service
+    build:
+      dockerfile: Dockerfile
+      context: ../micro-services/check-saldo-service/
+    restart: always
+    ports:
+      - 8086:8086      
+    environment:
+      PORT: 8086
+      KAFKA_URL: kafka:29093
+      DSN: postgres://adminpostgres:87654321@db:5432/postgres?sslmode=disable
+    depends_on:
+      - zookeeper  
+      - kafka   
+      - db
+  
+  check-mutasi-service:
+    container_name: check-mutasi-service
+    build:
+      dockerfile: Dockerfile
+      context: ../micro-services/check-mutasi-service/
+    restart: always
+    ports:
+      - 8087:8087      
+    environment:
+      PORT: 8087
+      KAFKA_URL: kafka:29093
+      DSN: postgres://adminpostgres:87654321@db:5432/postgres?sslmode=disable
+    depends_on:
+      - zookeeper  
+      - kafka   
+      - db
+
+  buyback-service:
+    container_name: buyback-service
+    build:
+      dockerfile: Dockerfile
+      context: ../micro-services/buyback-service/
+    restart: always
+    ports:
+      - 8088:8088      
+    environment:
+      PORT: 8088
+      KAFKA_URL: kafka:29093
+      KAFKA_TOPIC: buyback
+      DSN: postgres://adminpostgres:87654321@db:5432/postgres?sslmode=disable
+    depends_on:
+      - zookeeper  
+      - kafka   
+      - db  
+
+  buyback-storage-service:
+    container_name: buyback-storage-service
+    build:
+      dockerfile: Dockerfile
+      context: ../micro-services/buyback-storage-service/
+    restart: always
+    ports:
+      - 8089:8089      
+    environment:
+      PORT: 8089
+      KAFKA_URL: kafka:29093
+      KAFKA_TOPIC: buyback
+      DSN: postgres://adminpostgres:87654321@db:5432/postgres?sslmode=disable
+    depends_on:
+      - zookeeper  
+      - kafka   
+      - db
+
